@@ -30,7 +30,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ['--bind_ip_all']
+    command: ['--config', '/etc/mongod.conf']
     restart: always
     # Removed env_file directive
     environment:
@@ -43,6 +43,7 @@ services:
       - '27018:27017' # Explicitly use 27018 from .env
     volumes:
       - mongodb_data:/data/db
+      - ./mongod.conf:/etc/mongod.conf:ro
     networks:
       - drive-pulse-net
 
