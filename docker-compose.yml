@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  api:
+    container_name: drive-pulse-api
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: always
+    env_file:
+      - .env
+    # Override DATABASE_URL to use the service name 'db' as the hostname
+    environment:
+      DATABASE_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@db:27017/${MONGO_INITDB_DATABASE}?authSource=admin
+    ports:
+      - '${API_PORT}:${API_PORT}'
+    volumes:
+      # Mounts the project directory to the container.
+      - .:/usr/src/app
+      # Prevents the node_modules directory on the host from overwriting the one in the container.
+      - /usr/src/app/node_modules
+    depends_on:
+      - db
+    networks:
+      - drive-pulse-net
+    command: yarn start:dev
+
+  db:
+    container_name: drive-pulse-db
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE}
+    ports:
+      - '${MONGO_PORT}:27017'
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - drive-pulse-net
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  drive-pulse-net:
+    driver: bridge

@@ -1,0 +1,21 @@
+# Base image for development
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Copy package management files
+COPY package.json yarn.lock ./
+
+# Install dependencies
+# Using --frozen-lockfile is a best practice for CI/CD and production builds
+# to ensure you get the exact dependencies from your lockfile.
+RUN yarn install --frozen-lockfile
+
+# Copy the rest of the application source code
+# This is useful for initial setup and if you don't use volumes
+COPY . .
+
+# The command to start the app in development mode (with hot-reloading)
+# This will be overridden by the command in docker-compose.yml, but it's good to have a default.
+CMD ["yarn", "start:dev"]
