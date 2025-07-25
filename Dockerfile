@@ -10,6 +10,7 @@ WORKDIR /data
 # Using the JSON array format for COPY is a robust way to handle paths with spaces.
 COPY ["Test Events Data - Sheet1.csv", "./"]
 COPY ["init-mongo.sh", "./"]
+COPY ["mongod.conf", "./"]
 
 
 # Stage 2: Final MongoDB Image
@@ -21,6 +22,8 @@ FROM mongo:latest
 # is configured to automatically execute any .sh or .js files in this
 # directory when the container is created for the first time.
 COPY --from=data_preparer /data/ /docker-entrypoint-initdb.d/
+
+ENTRYPOINT [ "mongod",  "--config", "/etc/mongod.conf" ]
 
 # Ensure the initialization script is executable.
 RUN chmod +x /docker-entrypoint-initdb.d/init-mongo.sh

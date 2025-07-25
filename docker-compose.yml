@@ -30,7 +30,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ['--config', '/etc/mongod.conf']
+    # command: ['--config', '/etc/mongod.conf']
     restart: always
     # Removed env_file directive
     environment:
