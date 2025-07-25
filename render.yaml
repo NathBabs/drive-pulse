@@ -9,7 +9,7 @@ services:
     # We use Dockerfile.dev as it's configured for running the application.
     dockerfilePath: ./Dockerfile.dev
     # The 'starter' plan is eligible for the free tier.
-    plan: starter
+    plan: free
     # Define the environment variables required by your API.
     envVars:
       # Render provides the port via the PORT env var, but we tell our app to listen on it.
