@@ -1,39 +1,48 @@
+# This is the blueprint for deploying your application on Render.
 services:
+  # 1. The API Service (Web Service)
+  # This is your main NestJS application, which will have a public URL.
   - type: web
     name: drive-pulse-api
     env: docker
+    # We use Dockerfile.dev because it's set up for running the application.
     dockerfilePath: ./Dockerfile.dev
+    # The 'starter' plan is eligible for the free tier.
     plan: starter
+    # Define the environment variables for your API.
     envVars:
+      # Render assigns the port automatically, but we tell our app to listen on it.
       - key: API_PORT
         value: 10000
+      # This is the magic part: we tell Render to get the database connection
+      # string directly from the managed database we define below.
+      # Render will automatically handle the username, password, and hostname.
       - key: DATABASE_URL
-        value: mongodb://drive-pulse-db:27017/your-database-name
-      # Add other environment variables from your .env file here
-      - key: MONGO_INITDB_ROOT_USERNAME
-        sync: false
-      - key: MONGO_INITDB_ROOT_PASSWORD
-        sync: false
-      - key: MONGO_INITDB_DATABASE
-        sync: false
-    # Removed buildCommand and startCommand - these should be in your Dockerfile
-    healthCheckPath: /
+        fromDatabase:
+          name: drivepulse-db-managed # Must match the name of the database service below
+          property: connectionString
 
-  - type: pserv
-    name: drive-pulse-db
+  # 2. The Database Seeding Job (One-off Task)
+  # This is not a long-running server. It's a task we will run once manually.
+  - type: job
+    name: db-seeder
     env: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./Dockerfile.dev
     plan: starter
+    # The seeder needs the same database connection string as the API.
     envVars:
-      - key: MONGO_INITDB_ROOT_USERNAME
-        sync: false
-      - key: MONGO_INITDB_ROOT_PASSWORD
-        sync: false
-      - key: MONGO_INITDB_DATABASE
-        sync: false
-    disk:
-      name: mongodb-data
-      mountPath: /data/db
-      sizeGB: 10
+      - key: DATABASE_URL
+        fromDatabase:
+          name: drivepulse-db-managed
+          property: connectionString
+    # This is the command that will be executed when we run the job.
+    startCommand: yarn seed
 
-databases: []
+# 3. The Managed MongoDB Instance
+# This replaces your custom 'pserv' database container.
+databases:
+  - name: drivepulse-db-managed
+    # This specifies the actual name of the database inside the MongoDB instance.
+    databaseName: drive_pulse
+    # We explicitly choose the free plan.
+    plan: free
