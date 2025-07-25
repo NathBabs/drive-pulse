@@ -30,6 +30,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    command: ['--bind_ip_all']
     restart: always
     # Removed env_file directive
     environment:
