@@ -31,9 +31,5 @@ services:
         sync: false
       - key: MONGO_INITDB_DATABASE
         sync: false
-    disk:
-      name: mongodb-data
-      mountPath: /data/db
-      sizeGB: 10
 
 databases: []
