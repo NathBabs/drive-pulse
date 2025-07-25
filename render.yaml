@@ -1,48 +1,33 @@
-# This is the blueprint for deploying your application on Render.
+# This blueprint defines the services for the DrivePulse application on Render.
+# It uses a free-tier managed database and a free-tier web service.
 services:
   # 1. The API Service (Web Service)
   # This is your main NestJS application, which will have a public URL.
   - type: web
     name: drive-pulse-api
     env: docker
-    # We use Dockerfile.dev because it's set up for running the application.
+    # We use Dockerfile.dev as it's configured for running the application.
     dockerfilePath: ./Dockerfile.dev
     # The 'starter' plan is eligible for the free tier.
     plan: starter
-    # Define the environment variables for your API.
+    # Define the environment variables required by your API.
     envVars:
-      # Render assigns the port automatically, but we tell our app to listen on it.
+      # Render provides the port via the PORT env var, but we tell our app to listen on it.
       - key: API_PORT
         value: 10000
-      # This is the magic part: we tell Render to get the database connection
-      # string directly from the managed database we define below.
-      # Render will automatically handle the username, password, and hostname.
+      # This instruction tells Render to get the database connection string
+      # directly from the managed database defined below. Render securely handles
+      # injecting the correct hostname, username, and password.
       - key: DATABASE_URL
         fromDatabase:
-          name: drivepulse-db-managed # Must match the name of the database service below
+          name: drivepulse-db-managed # This must match the name of the database service below.
           property: connectionString
 
-  # 2. The Database Seeding Job (One-off Task)
-  # This is not a long-running server. It's a task we will run once manually.
-  - type: job
-    name: db-seeder
-    env: docker
-    dockerfilePath: ./Dockerfile.dev
-    plan: starter
-    # The seeder needs the same database connection string as the API.
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: drivepulse-db-managed
-          property: connectionString
-    # This is the command that will be executed when we run the job.
-    startCommand: yarn seed
-
-# 3. The Managed MongoDB Instance
-# This replaces your custom 'pserv' database container.
+# 2. The Managed MongoDB Instance
+# This replaces a custom 'pserv' database container and is eligible for the free tier.
 databases:
   - name: drivepulse-db-managed
     # This specifies the actual name of the database inside the MongoDB instance.
     databaseName: drive_pulse
-    # We explicitly choose the free plan.
+    # We explicitly choose the free plan for our database.
     plan: free
