@@ -9,7 +9,9 @@ import { Modules } from './modules/modules';
     // It automatically loads variables from the root .env file.
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      // By removing `envFilePath`, NestJS will load a .env file if it exists,\n
+      // but will not fail if it doesn\'t. It will always prioritize\n
+      // environment variables provided by the runtime (like from Docker Compose or Koyeb).\n
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
