@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: drive-pulse-api
+    env: docker
+    dockerfilePath: ./Dockerfile.dev
+    plan: free
+    envVars:
+      - key: API_PORT
+        value: 10000
+      - key: DATABASE_URL
+        value: mongodb://drive-pulse-db:27017/your-database-name
+      # Add other environment variables from your .env file here
+      - key: MONGO_INITDB_ROOT_USERNAME
+        sync: false
+      - key: MONGO_INITDB_ROOT_PASSWORD
+        sync: false
+      - key: MONGO_INITDB_DATABASE
+        sync: false
+    # Removed buildCommand and startCommand - these should be in your Dockerfile
+    healthCheckPath: /
+
+  - type: pserv
+    name: drive-pulse-db
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: MONGO_INITDB_ROOT_USERNAME
+        sync: false
+      - key: MONGO_INITDB_ROOT_PASSWORD
+        sync: false
+      - key: MONGO_INITDB_DATABASE
+        sync: false
+    disk:
+      name: mongodb-data
+      mountPath: /data/db
+      sizeGB: 10
+
+databases: []
