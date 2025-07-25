@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: drive-pulse-api
+    env: docker
+    dockerfilePath: ./Dockerfile.dev
+    plan: starter # or standard/pro based on your needs
+    envVars:
+      - key: API_PORT
+        value: 10000 # Render uses port 10000 by default
+      - key: DATABASE_URL
+        fromService:
+          type: pserv
+          name: drive-pulse-db
+          property: connectionString
+      # Add other environment variables from your .env file here
+      - key: MONGO_INITDB_ROOT_USERNAME
+        sync: false # Set this in Render dashboard
+      - key: MONGO_INITDB_ROOT_PASSWORD
+        sync: false # Set this in Render dashboard
+      - key: MONGO_INITDB_DATABASE
+        sync: false # Set this in Render dashboard
+    buildCommand: yarn install
+    startCommand: yarn start:dev
+    healthCheckPath: / # Update to your health check endpoint
+
+  - type: pserv
+    name: drive-pulse-db
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    envVars:
+      - key: MONGO_INITDB_ROOT_USERNAME
+        sync: false
+      - key: MONGO_INITDB_ROOT_PASSWORD
+        sync: false
+      - key: MONGO_INITDB_DATABASE
+        sync: false
+    disk:
+      name: mongodb-data
+      mountPath: /data/db
+      sizeGB: 10 # Adjust based on your needs
+
+databases: []
+# Note: If you prefer to use Render's managed MongoDB instead of a custom container,
+# you can replace the pserv with:
+# databases:
+#   - name: drive-pulse-mongodb
+#     plan: starter # or standard/pro
