@@ -3,75 +3,106 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as fs from 'fs';
 import * as csv from 'csv-parser';
-import { Event } from '../../modules/timeline/schemas/event.schema';
-import { join } from 'path';
+import {
+  Event,
+  EventDocument,
+} from '../../modules/timeline/schemas/event.schema';
 
 @Injectable()
 export class DataSeederService {
   constructor(
-    @InjectModel(Event.name) private readonly eventModel: Model<Event>,
+    @InjectModel(Event.name) private readonly eventModel: Model<EventDocument>,
     private readonly logger: Logger,
   ) {}
 
   async seed() {
-    try {
-      this.logger.log('Checking database for existing data...', 'DataSeederService');
-      const count = await this.eventModel.countDocuments().exec();
+    this.logger.log(
+      'Checking database for existing data...',
+      'DataSeederService',
+    );
 
+    try {
+      const count = await this.eventModel.estimatedDocumentCount().exec();
       if (count > 0) {
-        this.logger.log('Database is not empty. Skipping seeding.', 'DataSeederService');
+        this.logger.log(
+          `Database already contains ${count} records. Seeding skipped.`,
+          'DataSeederService',
+        );
         return;
       }
-
-      this.logger.log('Starting to seed the database from CSV file...', 'DataSeederService');
-      const events = await this.parseCsv();
-
-      if (events.length > 0) {
-        this.logger.log(`Parsed ${events.length} records from CSV. Inserting into database...`, 'DataSeederService');
-        await this.eventModel.insertMany(events, { ordered: false });
-        this.logger.log('Database seeding completed successfully.', 'DataSeederService');
-      } else {
-        this.logger.log('CSV file is empty or contains no valid data. No data to seed.', 'DataSeederService');
-      }
     } catch (error) {
-      this.logger.error('An error occurred during the seeding process:', error.stack, 'DataSeederService');
-      throw error;
+      this.logger.error(
+        'Error checking existing data in database',
+        error.stack,
+        'DataSeederService',
+      );
+      // Continue to attempt seeding even if count check fails, in case it's a transient issue
     }
-  }
 
-  private parseCsv(): Promise<Partial<Event>[]> {
-    return new Promise((resolve, reject) => {
-      const events: Partial<Event>[] = [];
-      // Assuming the CSV file is in the project root
-      const csvFilePath = join(process.cwd(), 'Test Events Data - Sheet1.csv');
+    this.logger.log(
+      'Starting to seed the database from CSV file...',
+      'DataSeederService',
+    );
+    const csvFilePath = 'Test Events Data - Sheet1.csv';
+    const results = [];
 
-      if (!fs.existsSync(csvFilePath)) {
-          const fileNotFoundError = new Error(`CSV file not found at path: ${csvFilePath}`);
-          this.logger.error(fileNotFoundError.message, 'DataSeederService');
-          return reject(fileNotFoundError);
-      }
+    // Check if the CSV file exists. In a Docker environment, this path is relative to the working directory.
+    if (!fs.existsSync(csvFilePath)) {
+      this.logger.error(
+        `CSV file not found at ${csvFilePath}. Cannot seed data.`,
+        '',
+        'DataSeederService',
+      );
+      // Exit gracefully if the source data is missing.
+      return;
+    }
 
+    await new Promise<void>((resolve, reject) => {
       fs.createReadStream(csvFilePath)
         .pipe(csv())
-        .on('data', (row) => {
-          const event: Partial<Event> = {
-            vehicleId: row.vehicleId,
-            event: row.event,
-            timestamp: new Date(row.timestamp),
-          };
+        .on('data', (data) => results.push(data))
+        .on('end', async () => {
+          try {
+            if (results.length > 0) {
+              this.logger.log(
+                `Parsed ${results.length} records from CSV. Inserting into database...`,
+                'DataSeederService',
+              );
 
-          if (event.vehicleId && event.event && !isNaN(event.timestamp.getTime())) {
-            events.push(event);
-          } else {
-            this.logger.warn(`Skipping invalid row from CSV: ${JSON.stringify(row)}`, 'DataSeederService');
+              const events = results.map((record) => ({
+                vehicleId: record.vehicleId,
+                event: record.event,
+                // Ensure timestamp is parsed as a Date object.
+                timestamp: new Date(record.timestamp),
+              }));
+
+              await this.eventModel.insertMany(events);
+              this.logger.log(
+                'Database seeding completed successfully.',
+                'DataSeederService',
+              );
+            } else {
+              this.logger.warn(
+                'CSV file is empty or contains no parsable records. No data to seed.',
+                'DataSeederService',
+              );
+            }
+            resolve();
+          } catch (error) {
+            this.logger.error(
+              'Error during data insertion into database.',
+              error.stack,
+              'DataSeederService',
+            );
+            reject(error);
           }
         })
-        .on('end', () => {
-          this.logger.log('CSV file successfully processed.', 'DataSeederService');
-          resolve(events);
-        })
         .on('error', (error) => {
-          this.logger.error('Error while reading or parsing CSV file:', error.stack, 'DataSeederService');
+          this.logger.error(
+            'Error reading or parsing CSV file.',
+            error.stack,
+            'DataSeederService',
+          );
           reject(error);
         });
     });
